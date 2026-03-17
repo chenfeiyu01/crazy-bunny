@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>疯狂兔子人 | Crazy Bunny</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      overflow: hidden;
+      background: #1a1a2e;
+    }
+    #game-container {
+      width: 100vw;
+      height: 100vh;
+    }
+    #hud {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      color: white;
+      font-family: 'Arial', sans-serif;
+      font-size: 24px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+      z-index: 100;
+      user-select: none;
+    }
+    #hud .carrot-count {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #hud .carrot-icon {
+      font-size: 28px;
+    }
+    #hud .timer {
+      margin-top: 10px;
+      font-size: 20px;
+    }
+    #instructions {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      color: rgba(255,255,255,0.7);
+      font-family: 'Arial', sans-serif;
+      font-size: 14px;
+      z-index: 100;
+      user-select: none;
+    }
+    #win-screen, #lose-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      background: rgba(0,0,0,0.8);
+      z-index: 200;
+      color: white;
+      font-family: 'Arial', sans-serif;
+    }
+    #win-screen h1, #lose-screen h1 {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+    #win-screen button, #lose-screen button {
+      padding: 15px 30px;
+      font-size: 20px;
+      cursor: pointer;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      transition: background 0.3s;
+    }
+    #win-screen button:hover, #lose-screen button:hover {
+      background: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container"></div>
+  <div id="hud">
+    <div class="carrot-count">
+      <span class="carrot-icon">🥕</span>
+      <span id="carrot-counter">0 / 5</span>
+    </div>
+    <div class="timer">时间: <span id="timer">0.0</span>s</div>
+  </div>
+  <div id="instructions">
+    <p>A/D 或 ←/→ - 左右滚动</p>
+    <p>空格 - 蹬腿（短按更容易连跳）</p>
+    <p>R - 重新开始</p>
+  </div>
+  <div id="win-screen">
+    <h1>🎉 恭喜通关!</h1>
+    <p>用时: <span id="win-time">0.0</span> 秒</p>
+    <button onclick="location.reload()">再来一次</button>
+  </div>
+  <div id="lose-screen">
+    <h1>💀 游戏结束</h1>
+    <p>你掉下了平台!</p>
+    <button onclick="location.reload()">重新开始</button>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
