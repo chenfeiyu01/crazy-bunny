@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>疯狂兔子人 | Crazy Bunny</title>
   <style>
+    :root {
+      --panel-bg: rgba(22, 41, 29, 0.72);
+      --panel-border: rgba(236, 255, 221, 0.28);
+      --accent: #ffe17a;
+      --accent-strong: #f7a83d;
+      --text-main: #f7fff6;
+      --text-soft: rgba(247, 255, 246, 0.82);
+      --shadow: 0 18px 40px rgba(10, 16, 12, 0.25);
+    }
     * {
       margin: 0;
       padding: 0;
@@ -12,7 +21,10 @@
     }
     body {
       overflow: hidden;
-      background: #1a1a2e;
+      background:
+        radial-gradient(circle at top, rgba(255, 246, 189, 0.55), transparent 34%),
+        linear-gradient(180deg, #8ad7f7 0%, #bee89c 60%, #8fc35c 100%);
+      font-family: 'Trebuchet MS', 'Avenir Next', sans-serif;
     }
     #game-container {
       width: 100vw;
@@ -20,36 +32,67 @@
     }
     #hud {
       position: fixed;
-      top: 20px;
-      left: 20px;
-      color: white;
-      font-family: 'Arial', sans-serif;
-      font-size: 24px;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+      top: 16px;
+      left: 16px;
+      min-width: 260px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      border: 1px solid var(--panel-border);
+      background: var(--panel-bg);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+      color: var(--text-main);
+      font-size: 18px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.3);
       z-index: 100;
       user-select: none;
+    }
+    #hud .goal {
+      margin-bottom: 10px;
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--accent);
     }
     #hud .carrot-count {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      font-weight: 700;
     }
     #hud .carrot-icon {
-      font-size: 28px;
+      font-size: 24px;
     }
     #hud .timer {
-      margin-top: 10px;
-      font-size: 20px;
+      margin-top: 8px;
+      font-size: 16px;
+    }
+    #hud .level {
+      margin-top: 8px;
+      font-size: 15px;
+      color: var(--text-soft);
     }
     #instructions {
       position: fixed;
-      bottom: 20px;
-      left: 20px;
-      color: rgba(255,255,255,0.7);
-      font-family: 'Arial', sans-serif;
+      bottom: 16px;
+      left: 16px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.24);
+      background: rgba(30, 47, 33, 0.58);
+      color: var(--text-soft);
       font-size: 14px;
+      line-height: 1.5;
+      box-shadow: var(--shadow);
       z-index: 100;
       user-select: none;
+    }
+    #instructions .label {
+      margin-bottom: 6px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
     }
     #win-screen, #lose-screen {
       position: fixed;
@@ -61,53 +104,85 @@
       justify-content: center;
       align-items: center;
       flex-direction: column;
-      background: rgba(0,0,0,0.8);
+      padding: 24px;
+      background: rgba(7, 12, 9, 0.62);
+      backdrop-filter: blur(14px);
       z-index: 200;
-      color: white;
-      font-family: 'Arial', sans-serif;
+      color: var(--text-main);
     }
     #win-screen h1, #lose-screen h1 {
-      font-size: 48px;
-      margin-bottom: 20px;
+      font-size: clamp(34px, 5vw, 52px);
+      margin-bottom: 18px;
+      text-align: center;
+    }
+    #win-screen p, #lose-screen p {
+      max-width: 520px;
+      margin-bottom: 12px;
+      text-align: center;
+      font-size: 18px;
     }
     #win-screen button, #lose-screen button {
-      padding: 15px 30px;
-      font-size: 20px;
+      margin-top: 14px;
+      padding: 14px 28px;
+      font-size: 18px;
+      font-weight: 700;
       cursor: pointer;
-      background: #4CAF50;
-      color: white;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+      color: #24310f;
       border: none;
-      border-radius: 8px;
-      transition: background 0.3s;
+      border-radius: 999px;
+      box-shadow: 0 14px 30px rgba(90, 62, 14, 0.25);
+      transition: transform 0.2s ease, filter 0.2s ease;
     }
     #win-screen button:hover, #lose-screen button:hover {
-      background: #45a049;
+      transform: translateY(-1px);
+      filter: brightness(1.04);
+    }
+    @media (max-width: 640px) {
+      #hud, #instructions {
+        left: 12px;
+        right: 12px;
+        min-width: 0;
+      }
+      #hud {
+        top: 12px;
+      }
+      #instructions {
+        bottom: 12px;
+        font-size: 13px;
+      }
     }
   </style>
 </head>
 <body>
   <div id="game-container"></div>
   <div id="hud">
+    <div class="goal">目标：两只兔子都滚进虫洞</div>
     <div class="carrot-count">
       <span class="carrot-icon">🥕</span>
-      <span id="carrot-counter">0 / 5</span>
+      <span id="carrot-counter">可选胡萝卜 0 / 0</span>
     </div>
-    <div class="timer">时间: <span id="timer">0.0</span>s</div>
+    <div class="timer">到虫洞用时: <span id="timer">0.0</span>s</div>
+    <div class="level"><span id="level-indicator">第 1 / 1 关</span> · <span id="level-name">训练热身</span></div>
   </div>
   <div id="instructions">
-    <p>A/D 或 ←/→ - 左右滚动</p>
-    <p>空格 - 蹬腿（短按更容易连跳）</p>
-    <p>R - 重新开始</p>
+    <p class="label">双人合作模式</p>
+    <p><strong>玩家1 (米色兔子):</strong> A/D - 滚动 | 空格 - 蹬腿 | W - 抓住队友/地形</p>
+    <p><strong>玩家2 (橙色兔子):</strong> ←/→ - 滚动 | Enter/右Shift - 蹬腿 | ↑ - 抓住队友/地形</p>
+    <p>两只兔子都要进虫洞才能过关</p>
+    <p>任何一只掉落，团队重来</p>
+    <p>R - 重开当前关</p>
   </div>
   <div id="win-screen">
-    <h1>🎉 恭喜通关!</h1>
+    <h1 id="win-title">🌀 过关，继续往前滚!</h1>
+    <p id="win-message">准备进入下一关</p>
     <p>用时: <span id="win-time">0.0</span> 秒</p>
-    <button onclick="location.reload()">再来一次</button>
+    <button id="win-action">下一关</button>
   </div>
   <div id="lose-screen">
-    <h1>💀 游戏结束</h1>
-    <p>你掉下了平台!</p>
-    <button onclick="location.reload()">重新开始</button>
+    <h1>💀 摔出训练场</h1>
+    <p id="lose-message">你掉下了平台!</p>
+    <button id="lose-action">重新开始</button>
   </div>
   <script type="module" src="/src/main.ts"></script>
 </body>

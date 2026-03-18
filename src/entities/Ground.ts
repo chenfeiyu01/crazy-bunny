@@ -16,7 +16,7 @@ export class Ground {
     height: number,
     depth: number,
     color: number,
-    rotationX: number = 0
+    rotationZ: number = 0
   ) {
     // 创建视觉模型
     const geometry = new THREE.BoxGeometry(width, height, depth);
@@ -28,7 +28,7 @@ export class Ground {
 
     this.mesh = new THREE.Mesh(geometry, material);
     this.mesh.position.set(x, y, z);
-    this.mesh.rotation.x = rotationX;
+    this.mesh.rotation.z = rotationZ;
     this.mesh.receiveShadow = true;
     this.mesh.castShadow = true;
     scene.add(this.mesh);
@@ -43,12 +43,22 @@ export class Ground {
     });
 
     // 应用旋转
-    if (rotationX !== 0) {
+    if (rotationZ !== 0) {
       const quaternion = new CANNON.Quaternion();
-      quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), rotationX);
+      quaternion.setFromAxisAngle(new CANNON.Vec3(0, 0, 1), rotationZ);
       this.body.quaternion.copy(quaternion);
     }
 
     physics.world.addBody(this.body);
+  }
+
+  destroy(): void {
+    if (this.mesh.parent) {
+      this.mesh.parent.remove(this.mesh);
+    }
+
+    if (this.body.world) {
+      this.body.world.removeBody(this.body);
+    }
   }
 }

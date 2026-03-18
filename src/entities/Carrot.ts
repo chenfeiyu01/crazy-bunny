@@ -17,6 +17,8 @@ export class Carrot {
     const bodyGeometry = new THREE.ConeGeometry(0.2, 0.8, 8);
     const bodyMaterial = new THREE.MeshStandardMaterial({
       color: 0xff6600,
+      emissive: 0x7a2c00,
+      emissiveIntensity: 0.35,
       roughness: 0.6
     });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
@@ -28,6 +30,8 @@ export class Carrot {
     const leafGeometry = new THREE.ConeGeometry(0.08, 0.3, 4);
     const leafMaterial = new THREE.MeshStandardMaterial({
       color: 0x228B22,
+      emissive: 0x0c4010,
+      emissiveIntensity: 0.2,
       roughness: 0.8
     });
 
@@ -63,5 +67,9 @@ export class Carrot {
     if (this.mesh.parent) {
       this.mesh.parent.remove(this.mesh);
     }
+  }
+
+  destroy(): void {
+    this.collect();
   }
 }
