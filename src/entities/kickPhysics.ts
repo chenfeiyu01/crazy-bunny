@@ -46,8 +46,8 @@ export function getKickImpulseDirection(rotationAngle: number): Vec2Like {
 
 export function getTunedKickImpulseDirection(rotationAngle: number): Vec2Like {
   const raw = getKickImpulseDirection(rotationAngle);
-  const minUpward = 0.58;
-  const horizontalBoost = 1;
+  const minUpward = 0.72;
+  const horizontalBoost = 1.18;
 
   return normalize(raw.x * horizontalBoost, Math.max(minUpward, raw.y));
 }

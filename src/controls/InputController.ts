@@ -3,6 +3,7 @@ export class InputController {
   backward: boolean = false;
   left: boolean = false;
   right: boolean = false;
+  grabHeld: boolean = false;
   private jumpPressed: boolean = false;  // 当前帧是否按下
   private jumpConsumed: boolean = false; // 是否已被消费
   private spaceHeld: boolean = false;    // 空格是否被按住

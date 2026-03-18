@@ -1,15 +1,23 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
-import { InputController } from '../controls/InputController';
+import { PlayerInput } from '../controls/MultiInputController';
 import { getKickAnimationPose } from './playerAnimation';
 import {
   buildKickProbe,
-  getKickImpulsePoint,
-  getTunedKickImpulseDirection,
   isExternalKickHit,
   clampAngularSpeed,
+  getKickImpulsePoint,
+  getTunedKickImpulseDirection,
 } from './kickPhysics';
+import {
+  PLAYER_TUNING,
+  applyLandingSpinDamping,
+  getAngularDamping,
+  getHorizontalMoveForce,
+  getLinearDamping,
+  getMaxAngularSpeed,
+} from './playerTuning';
 
 interface KickContact {
   impulseDirection: {
@@ -22,6 +30,30 @@ interface KickContact {
   };
 }
 
+/** Color scheme for a player */
+interface PlayerColors {
+  fur: number;
+  belly: number;
+  limb: number;
+  accent: number;
+}
+
+/** Default player 1 colors (cream/brown bunny) */
+const PLAYER_1_COLORS: PlayerColors = {
+  fur: 0xf3f0df,
+  belly: 0xfff6ea,
+  limb: 0xe8dfc9,
+  accent: 0xffa6b8,
+};
+
+/** Player 2 colors (orange/ginger bunny) */
+const PLAYER_2_COLORS: PlayerColors = {
+  fur: 0xf5c896,
+  belly: 0xffe4c4,
+  limb: 0xe8b87a,
+  accent: 0xff7b54,
+};
+
 export class Player {
   mesh: THREE.Group;
   body: CANNON.Body;
@@ -33,24 +65,6 @@ export class Player {
   private kickLegRoot: THREE.Group;
   private supportLegRoot: THREE.Group;
   private physicsWorld: PhysicsWorld;
-  private readonly FIXED_Z = 0;
-  private readonly BODY_RADIUS = 0.8;
-  private readonly GROUND_TORQUE = 17;
-  private readonly GROUND_PUSH_FORCE = 8.5;
-  private readonly AIR_PUSH_FORCE = 2.6;
-  private readonly KICK_FORCE = 31;
-  private readonly KICK_COOLDOWN = 0.18;
-  private readonly KICK_BUFFER_TIME = 0.22;
-  private readonly KICK_PROBE_LENGTH = 0.82;
-  private readonly KICK_PROBE_SPREAD = 0.28;
-  private readonly MAX_AIR_ANGULAR_SPEED = 5.8;
-  private readonly MAX_GROUND_ANGULAR_SPEED = 8;
-  private readonly LANDING_SPIN_DAMPING = 0.55;
-  private readonly GROUND_LINEAR_DAMPING = 0.1;
-  private readonly AIR_LINEAR_DAMPING = 0.04;
-  private readonly GROUND_ANGULAR_DAMPING = 0.18;
-  private readonly AIR_ANGULAR_DAMPING = 0.08;
-  private readonly KICK_ANIMATION_DURATION = 0.19;
   private readonly EAR_LEFT_BASE_ROTATION = 0.18;
   private readonly EAR_RIGHT_BASE_ROTATION = -0.14;
   private kickCooldownTimer: number = 0;
@@ -58,9 +72,11 @@ export class Player {
   private legExtended: boolean = false;
   private legAnimationTime: number = 0;
   private grounded: boolean = false;
+  private playerIndex: number;
 
-  constructor(_scene: THREE.Scene, physics: PhysicsWorld) {
+  constructor(_scene: THREE.Scene, physics: PhysicsWorld, playerIndex: number = 0) {
     this.physicsWorld = physics;
+    this.playerIndex = playerIndex;
     this.mesh = new THREE.Group();
     this.visualRoot = new THREE.Group();
     this.torsoGroup = new THREE.Group();
@@ -73,35 +89,40 @@ export class Player {
     this.mesh.add(this.visualRoot);
     this.buildVisualRig();
 
-    const shape = new CANNON.Sphere(this.BODY_RADIUS);
+    const shape = new CANNON.Sphere(PLAYER_TUNING.bodyRadius);
     this.body = new CANNON.Body({
       mass: 2,
       shape,
-      position: new CANNON.Vec3(0, 3, this.FIXED_Z),
+      position: new CANNON.Vec3(0, 3, PLAYER_TUNING.fixedZ),
       material: physics.playerMaterial,
-      linearDamping: this.AIR_LINEAR_DAMPING,
-      angularDamping: this.AIR_ANGULAR_DAMPING,
+      linearDamping: PLAYER_TUNING.airLinearDamping,
+      angularDamping: PLAYER_TUNING.airAngularDamping,
     });
     this.body.allowSleep = false;
 
     physics.world.addBody(this.body);
   }
 
+  private getColors(): PlayerColors {
+    return this.playerIndex === 1 ? PLAYER_2_COLORS : PLAYER_1_COLORS;
+  }
+
   private buildVisualRig(): void {
+    const colors = this.getColors();
     const furMaterial = new THREE.MeshStandardMaterial({
-      color: 0xf3f0df,
+      color: colors.fur,
       roughness: 0.92,
     });
     const bellyMaterial = new THREE.MeshStandardMaterial({
-      color: 0xfff6ea,
+      color: colors.belly,
       roughness: 0.9,
     });
     const limbMaterial = new THREE.MeshStandardMaterial({
-      color: 0xe8dfc9,
+      color: colors.limb,
       roughness: 0.95,
     });
     const accentMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffa6b8,
+      color: colors.accent,
       roughness: 0.8,
     });
     const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 });
@@ -231,14 +252,14 @@ export class Player {
       const normalX = dir.x / length;
       const normalY = dir.y / length;
       const start = new CANNON.Vec3(
-        this.body.position.x + normalX * (this.BODY_RADIUS + 0.02),
-        this.body.position.y + normalY * (this.BODY_RADIUS + 0.02),
-        this.FIXED_Z
+        this.body.position.x + normalX * (PLAYER_TUNING.bodyRadius + 0.02),
+        this.body.position.y + normalY * (PLAYER_TUNING.bodyRadius + 0.02),
+        PLAYER_TUNING.fixedZ
       );
       const end = new CANNON.Vec3(
         start.x + normalX * probeLength,
         start.y + normalY * probeLength,
-        this.FIXED_Z
+        PLAYER_TUNING.fixedZ
       );
       const result = new CANNON.RaycastResult();
 
@@ -256,18 +277,15 @@ export class Player {
     const wasGrounded = this.grounded;
     this.grounded = this.hasGroundContact();
 
-    this.body.linearDamping = this.grounded ? this.GROUND_LINEAR_DAMPING : this.AIR_LINEAR_DAMPING;
-    this.body.angularDamping = this.grounded ? this.GROUND_ANGULAR_DAMPING : this.AIR_ANGULAR_DAMPING;
+    this.body.linearDamping = getLinearDamping(this.grounded);
+    this.body.angularDamping = getAngularDamping(this.grounded);
 
     if (this.grounded && !wasGrounded) {
-      this.body.angularVelocity.z = clampAngularSpeed(
-        this.body.angularVelocity.z * this.LANDING_SPIN_DAMPING,
-        this.MAX_GROUND_ANGULAR_SPEED
-      );
+      this.body.angularVelocity.z = applyLandingSpinDamping(this.body.angularVelocity.z);
     } else {
       this.body.angularVelocity.z = clampAngularSpeed(
         this.body.angularVelocity.z,
-        this.grounded ? this.MAX_GROUND_ANGULAR_SPEED : this.MAX_AIR_ANGULAR_SPEED
+        getMaxAngularSpeed(this.grounded)
       );
     }
 
@@ -282,7 +300,7 @@ export class Player {
 
   private detectKickContact(): KickContact | null {
     const bodyAngle = this.getBodyRotationAngle();
-    const probeOffsets = [0, -this.KICK_PROBE_SPREAD, this.KICK_PROBE_SPREAD];
+    const probeOffsets = [0, -PLAYER_TUNING.kickProbeSpread, PLAYER_TUNING.kickProbeSpread];
     let bestDistance = Number.POSITIVE_INFINITY;
     let hasContact = false;
 
@@ -290,11 +308,11 @@ export class Player {
       const probe = buildKickProbe(
         { x: this.body.position.x, y: this.body.position.y },
         bodyAngle + angleOffset,
-        this.BODY_RADIUS,
-        this.KICK_PROBE_LENGTH
+        PLAYER_TUNING.bodyRadius,
+        PLAYER_TUNING.kickProbeLength
       );
-      const start = new CANNON.Vec3(probe.start.x, probe.start.y, this.FIXED_Z);
-      const end = new CANNON.Vec3(probe.end.x, probe.end.y, this.FIXED_Z);
+      const start = new CANNON.Vec3(probe.start.x, probe.start.y, PLAYER_TUNING.fixedZ);
+      const end = new CANNON.Vec3(probe.end.x, probe.end.y, PLAYER_TUNING.fixedZ);
 
       const result = new CANNON.RaycastResult();
       this.physicsWorld.world.raycastClosest(start, end, {}, result);
@@ -314,7 +332,7 @@ export class Player {
       impulsePoint: getKickImpulsePoint(
         { x: this.body.position.x, y: this.body.position.y },
         bodyAngle,
-        this.BODY_RADIUS
+        PLAYER_TUNING.bodyRadius
       ),
     };
   }
@@ -331,22 +349,22 @@ export class Player {
     }
 
     const impulse = new CANNON.Vec3(
-      contact.impulseDirection.x * this.KICK_FORCE,
-      contact.impulseDirection.y * this.KICK_FORCE,
+      contact.impulseDirection.x * PLAYER_TUNING.kickForce,
+      contact.impulseDirection.y * PLAYER_TUNING.kickForce,
       0
     );
 
     this.body.angularVelocity.z = clampAngularSpeed(
       this.body.angularVelocity.z * 0.75,
-      this.MAX_AIR_ANGULAR_SPEED
+      PLAYER_TUNING.maxAirAngularSpeed
     );
     this.body.wakeUp();
     this.body.applyImpulse(
       impulse,
-      new CANNON.Vec3(contact.impulsePoint.x, contact.impulsePoint.y, this.FIXED_Z)
+      new CANNON.Vec3(contact.impulsePoint.x, contact.impulsePoint.y, PLAYER_TUNING.fixedZ)
     );
 
-    this.kickCooldownTimer = this.KICK_COOLDOWN;
+    this.kickCooldownTimer = PLAYER_TUNING.kickCooldown;
     this.kickBufferTimer = 0;
     this.legExtended = true;
     this.legAnimationTime = 0;
@@ -355,7 +373,7 @@ export class Player {
   private updateLegAnimation(delta: number): void {
     if (this.legExtended) {
       this.legAnimationTime += delta;
-      if (this.legAnimationTime >= this.KICK_ANIMATION_DURATION) {
+      if (this.legAnimationTime >= PLAYER_TUNING.kickAnimationDuration) {
         this.legExtended = false;
       }
     }
@@ -378,7 +396,7 @@ export class Player {
     this.kickLegRoot.rotation.z = pose.kickLegRotation;
   }
 
-  applyInput(input: InputController, delta: number): void {
+  applyInput(input: PlayerInput, delta: number): void {
     this.updateMovementState(delta);
 
     let moveX = 0;
@@ -387,11 +405,11 @@ export class Player {
 
     if (moveX !== 0) {
       if (this.grounded) {
-        this.body.applyTorque(new CANNON.Vec3(0, 0, -moveX * this.GROUND_TORQUE));
+        this.body.applyTorque(new CANNON.Vec3(0, 0, -moveX * PLAYER_TUNING.groundTorque));
       }
       this.body.applyForce(
         new CANNON.Vec3(
-          moveX * (this.grounded ? this.GROUND_PUSH_FORCE : this.AIR_PUSH_FORCE),
+          moveX * getHorizontalMoveForce(this.grounded),
           0,
           0
         )
@@ -399,7 +417,7 @@ export class Player {
     }
 
     if (input.jump) {
-      this.kickBufferTimer = this.KICK_BUFFER_TIME;
+      this.kickBufferTimer = PLAYER_TUNING.kickBufferTime;
     }
 
     if (this.kickBufferTimer > 0) {
@@ -410,10 +428,31 @@ export class Player {
   syncVisual(delta: number): void {
     this.updateLegAnimation(delta);
 
-    this.body.position.z = this.FIXED_Z;
+    this.body.position.z = PLAYER_TUNING.fixedZ;
     this.body.velocity.z = 0;
 
-    this.mesh.position.set(this.body.position.x, this.body.position.y, this.FIXED_Z);
+    this.mesh.position.set(this.body.position.x, this.body.position.y, PLAYER_TUNING.fixedZ);
     this.mesh.quaternion.set(0, 0, this.body.quaternion.z, this.body.quaternion.w);
+  }
+
+  resetTo(x: number, y: number): void {
+    this.body.position.set(x, y, PLAYER_TUNING.fixedZ);
+    this.body.velocity.set(0, 0, 0);
+    this.body.angularVelocity.set(0, 0, 0);
+    this.body.force.set(0, 0, 0);
+    this.body.torque.set(0, 0, 0);
+    this.body.quaternion.set(0, 0, 0, 1);
+    this.body.linearDamping = PLAYER_TUNING.airLinearDamping;
+    this.body.angularDamping = PLAYER_TUNING.airAngularDamping;
+    this.kickCooldownTimer = 0;
+    this.kickBufferTimer = 0;
+    this.legExtended = false;
+    this.legAnimationTime = 0;
+    this.grounded = false;
+    this.body.wakeUp();
+
+    this.mesh.position.set(x, y, PLAYER_TUNING.fixedZ);
+    this.mesh.quaternion.set(0, 0, 0, 1);
+    this.updateLegAnimation(0);
   }
 }

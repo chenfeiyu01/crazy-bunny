@@ -44,6 +44,14 @@ describe('kickPhysics helpers', () => {
     expect(impulse.y).toBeGreaterThan(0.5);
   });
 
+  it('adds extra forward carry for shallow forward-lean kicks', () => {
+    const raw = getKickImpulseDirection(-Math.PI / 6);
+    const tuned = getTunedKickImpulseDirection(-Math.PI / 6);
+
+    expect(tuned.x).toBeGreaterThan(raw.x);
+    expect(tuned.y).toBeGreaterThan(0.55);
+  });
+
   it('starts the kick probe just outside the body so the ray does not begin inside the player', () => {
     const probe = buildKickProbe({ x: 0, y: 0 }, 0, 0.8, 0.5);
 
